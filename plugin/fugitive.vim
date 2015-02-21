@@ -800,6 +800,33 @@ function! s:StagePrevious(count) abort
   endif
 endfunction
 
+function! s:StageJumpUp(count)
+  let line = line('.')
+  call s:StagePrevious(a:count)
+  if line != line('.')
+    return
+  endif
+  if 1 == line('.')
+    normal! G
+  else
+    normal! gk
+  endif
+endfunction
+
+function! s:StageJumpDown(count)
+  let line = line('.')
+  call s:StageNext(a:count)
+  if line != line('.')
+    return
+  endif
+
+  if line('$') == line('.')
+    normal! gg
+  else
+    normal! gj
+  endif
+endfunction
+
 function! s:StageReloadSeek(target,lnum1,lnum2) abort
   let jump = a:target
   let f = matchstr(getline(a:lnum1-1),'^#\t\%([[:alpha:] ]\+: *\|.*\%uff1a *\)\=\zs.*')
@@ -1055,6 +1082,10 @@ function! s:Commit(args, ...) abort
         endif
         let b:fugitive_commit_arguments = args
         setlocal bufhidden=wipe filetype=gitcommit
+
+        nnoremap <buffer> <silent> J :<C-U>call <SID>StageJumpDown(v:count1)<CR>
+        nnoremap <buffer> <silent> K :<C-U>call <SID>StageJumpUp(v:count1)<CR>
+
         call s:CommitDiff()
         return '1'
       elseif error ==# '!'
@@ -1083,11 +1114,12 @@ function! s:CommitDiff()
   let b:fugitive_commit_diff_bufnr = diff_bufnr
 endfunction
 
-function! s:CommitDiffJump()
+function! s:CommitDiffJump(line)
   if !exists('b:fugitive_commit_diff_bufnr')
     return
   endif
-  let [filename, section] = s:stage_info(line('.'))
+  let [filename, section] = s:stage_info(a:line)
+
   if !empty(filename)
     exec bufwinnr(b:fugitive_commit_diff_bufnr) . 'wincmd w'
     if search('^\%(+++\|---\) [ab]/'.filename, 'w') > 0
@@ -1582,7 +1614,7 @@ endfunction
 
 augroup fugitive_commit
   autocmd!
-  autocmd CursorMoved COMMIT_EDITMSG call s:CommitDiffJump()
+  autocmd CursorMoved COMMIT_EDITMSG call s:CommitDiffJump(line('.'))
   autocmd VimLeavePre,BufDelete COMMIT_EDITMSG execute s:sub(s:FinishCommit(), '^echoerr (.*)', 'echohl ErrorMsg|echo \1|echohl NONE')
 augroup END
 
@@ -2467,6 +2499,8 @@ function! s:BufReadIndex() abort
     nunmap   <buffer>          ~
     nnoremap <buffer> <silent> <C-N> :<C-U>execute <SID>StageNext(v:count1)<CR>
     nnoremap <buffer> <silent> <C-P> :<C-U>execute <SID>StagePrevious(v:count1)<CR>
+    nnoremap <buffer> <silent> J :<C-U>call <SID>StageJumpDown(v:count1)<CR>
+    nnoremap <buffer> <silent> K :<C-U>call <SID>StageJumpUp(v:count1)<CR>
     nnoremap <buffer> <silent> - :<C-U>silent execute <SID>StageToggle(line('.'),line('.')+v:count1-1)<CR>
     xnoremap <buffer> <silent> - :<C-U>silent execute <SID>StageToggle(line("'<"),line("'>"))<CR>
     nnoremap <buffer> <silent> a :<C-U>let b:fugitive_display_format += 1<Bar>exe <SID>BufReadIndex()<CR>
