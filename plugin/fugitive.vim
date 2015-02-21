@@ -1055,6 +1055,7 @@ function! s:Commit(args, ...) abort
         endif
         let b:fugitive_commit_arguments = args
         setlocal bufhidden=wipe filetype=gitcommit
+        call s:CommitDiff()
         return '1'
       elseif error ==# '!'
         return s:Status()
@@ -1072,6 +1073,30 @@ function! s:Commit(args, ...) abort
     call delete(errorfile)
     call fugitive#reload_status()
   endtry
+endfunction
+
+function! s:CommitDiff()
+  DiffGitCached
+  let diff_bufnr = bufnr('')
+  wincmd L
+  wincmd p
+  let b:fugitive_commit_diff_bufnr = diff_bufnr
+endfunction
+
+function! s:CommitDiffJump()
+  if !exists('b:fugitive_commit_diff_bufnr')
+    return
+  endif
+  let [filename, section] = s:stage_info(line('.'))
+  if !empty(filename)
+    exec bufwinnr(b:fugitive_commit_diff_bufnr) . 'wincmd w'
+    if search('^\%(+++\|---\) [ab]/'.filename, 'w') > 0
+      normal! zz
+      execute 'match Search /\%'.line('.').'l/'
+    endif
+
+    wincmd p
+  endif
 endfunction
 
 function! s:CommitComplete(A,L,P) abort
@@ -1554,8 +1579,10 @@ function! s:Wq(force,...) abort
   endif
 endfunction
 
+
 augroup fugitive_commit
   autocmd!
+  autocmd CursorMoved COMMIT_EDITMSG call s:CommitDiffJump()
   autocmd VimLeavePre,BufDelete COMMIT_EDITMSG execute s:sub(s:FinishCommit(), '^echoerr (.*)', 'echohl ErrorMsg|echo \1|echohl NONE')
 augroup END
 
