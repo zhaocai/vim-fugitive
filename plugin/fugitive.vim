@@ -1141,6 +1141,11 @@ function! s:CommitComplete(A,L,P) abort
 endfunction
 
 function! s:FinishCommit() abort
+  let diff_bufnr = getbufvar(+expand('<abuf>'),'fugitive_commit_diff_bufnr',-1)
+  if diff_bufnr != -1 && bufwinnr(diff_bufnr) > 0
+    pclose
+  endif
+
   let args = getbufvar(+expand('<abuf>'),'fugitive_commit_arguments')
   if !empty(args)
     call setbufvar(+expand('<abuf>'),'fugitive_commit_arguments','')
